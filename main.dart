@@ -6,13 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // ───────────────────────── Theme constants ─────────────────────────
-const kBg = Color(0xFF0B1220);
-const kCard = Color(0xFF131C2E);
-const kCard2 = Color(0xFF1A2640);
-const kBlue = Color(0xFF1E6FFF);
+const kBg = Color(0xFF0A1122);
+const kCard = Color(0xFF121C33);
+const kCard2 = Color(0xFF18243F);
+const kBorder = Color(0xFF222F4D);
+const kBlue = Color(0xFF1677FF);
 const kGreen = Color(0xFF22C55E);
-const kRed = Color(0xFFE11D48);
-const kMuted = Color(0xFF8A96AD);
+const kRed = Color(0xFFEF3F5F);
+const kMuted = Color(0xFF8C9AB5);
 
 const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthsFull = [
@@ -105,7 +106,7 @@ Widget bigBtn(String text, VoidCallback onTap, {Color color = kBlue}) => SizedBo
 Widget cardBox({required Widget child, EdgeInsets? padding, Color? color}) => Container(
       width: double.infinity,
       padding: padding ?? const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: color ?? kCard, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: color ?? kCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
       child: child,
     );
 
@@ -119,7 +120,7 @@ Widget labeled(String label, Widget child) => Padding(
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-            decoration: BoxDecoration(color: kCard2, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
             child: child,
           ),
         ],
@@ -142,7 +143,7 @@ Widget dropdown(String value, List<String> items, ValueChanged<String> onChanged
 Widget segmented(List<String> labels, int sel, ValueChanged<int> onTap, {List<Color>? colors}) =>
     Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
       child: Row(
         children: List.generate(labels.length, (i) {
           return Expanded(
@@ -165,6 +166,14 @@ Widget segmented(List<String> labels, int sel, ValueChanged<int> onTap, {List<Co
 
 void snack(BuildContext c, String m) =>
     ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m)));
+
+final chipStyle = OutlinedButton.styleFrom(
+  backgroundColor: kCard,
+  foregroundColor: Colors.white,
+  side: const BorderSide(color: kBorder),
+  padding: const EdgeInsets.symmetric(vertical: 14),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+);
 
 // ───────────────────────── Model + State ─────────────────────────
 class Txn {
@@ -317,8 +326,12 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 40),
               Container(
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(color: kBlue.withAlpha(50), borderRadius: BorderRadius.circular(22)),
-                child: const Icon(Icons.account_balance_wallet, size: 56, color: kBlue),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF2B8CFF), Color(0xFF1250D6)]),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [BoxShadow(color: kBlue.withAlpha(90), blurRadius: 28, spreadRadius: 2)],
+                ),
+                child: const Icon(Icons.account_balance_wallet, size: 52, color: Colors.white),
               ),
               const SizedBox(height: 16),
               const Text.rich(TextSpan(children: [
@@ -331,10 +344,13 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 36),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
                 child: Row(
                   children: [
                     const Text('🇮🇳 +91', style: TextStyle(fontSize: 16)),
+                    const Icon(Icons.keyboard_arrow_down, size: 18, color: kMuted),
+                    const SizedBox(width: 10),
+                    Container(width: 1, height: 24, color: kBorder),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
@@ -361,6 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: chipStyle,
                       onPressed: () => send('SMS'),
                       icon: const Icon(Icons.sms, color: kBlue),
                       label: const Text('SMS'),
@@ -369,6 +386,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: chipStyle,
                       onPressed: () => send('WhatsApp'),
                       icon: const Icon(Icons.chat, color: kGreen),
                       label: const Text('WhatsApp'),
@@ -510,6 +528,7 @@ class _OtpScreenState extends State<OtpScreen> {
               const SizedBox(height: 10),
               Center(
                 child: OutlinedButton.icon(
+                  style: chipStyle,
                   onPressed: () => snack(context, 'OTP sent via WhatsApp (demo OTP: 123456)'),
                   icon: const Icon(Icons.chat, color: kGreen),
                   label: const Text('WhatsApp'),
@@ -524,6 +543,53 @@ class _OtpScreenState extends State<OtpScreen> {
 }
 
 // ───────────────────────── 3. Success ─────────────────────────
+class ConfettiPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    const cols = [kBlue, kGreen, Color(0xFFEAB308), kBlue, kGreen, Color(0xFFF97316)];
+    for (int i = 0; i < 14; i++) {
+      final a = i * 2 * math.pi / 14 + 0.3;
+      final r = 76.0 + (i % 3) * 10;
+      canvas.drawCircle(
+        c + Offset(math.cos(a) * r, math.sin(a) * r),
+        2.5 + (i % 2),
+        Paint()..color = cols[i % cols.length],
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+class SuccessBadge extends StatelessWidget {
+  const SuccessBadge({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 200,
+      height: 200,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(size: const Size(200, 200), painter: ConfettiPainter()),
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: kGreen,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: kGreen.withAlpha(110), blurRadius: 30, spreadRadius: 4)],
+            ),
+            child: const Icon(Icons.check, size: 60, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class SuccessScreen extends StatelessWidget {
   const SuccessScreen({super.key});
   @override
@@ -535,12 +601,7 @@ class SuccessScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: const BoxDecoration(color: kGreen, shape: BoxShape.circle),
-                child: const Icon(Icons.check, size: 60, color: Colors.white),
-              ),
+              const SuccessBadge(),
               const SizedBox(height: 28),
               const Text('Verification Completed!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
@@ -612,12 +673,23 @@ class _HomeTabState extends State<HomeTab> {
   Widget stat(String label, double value, IconData icon, Color color) => Expanded(
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: color.withAlpha(200), borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color, Color.lerp(color, Colors.black, 0.35)!],
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Icon(icon, size: 18),
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
+                  child: Icon(icon, size: 16),
+                ),
                 const SizedBox(width: 6),
                 Text(label, style: const TextStyle(fontSize: 13)),
               ]),
@@ -697,9 +769,9 @@ class _HomeTabState extends State<HomeTab> {
               ),
               const SizedBox(height: 12),
               Row(children: [
-                stat('Income', app.income, Icons.arrow_downward, const Color(0xFF15803D)),
+                stat('Income', app.income, Icons.arrow_downward, const Color(0xFF1FA84F)),
                 const SizedBox(width: 12),
-                stat('Expenses', app.expense, Icons.arrow_upward, const Color(0xFFBE123C)),
+                stat('Expenses', app.expense, Icons.arrow_upward, const Color(0xFFD62A4B)),
               ]),
               const SizedBox(height: 12),
               GestureDetector(
@@ -709,7 +781,11 @@ class _HomeTabState extends State<HomeTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        const Icon(Icons.luggage, color: kBlue),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: kBlue.withAlpha(50), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.luggage, color: kBlue, size: 20),
+                        ),
                         const SizedBox(width: 10),
                         const Expanded(child: Text('Outing Budget', style: TextStyle(fontWeight: FontWeight.w600))),
                         Text(inr(app.outingBudget), style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -783,7 +859,7 @@ class TxnTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
       child: Row(
         children: [
           Container(
@@ -810,6 +886,8 @@ class TxnTile extends StatelessWidget {
               Text(fmtDate(t.date), style: const TextStyle(color: kMuted, fontSize: 11)),
             ],
           ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, size: 18, color: kMuted),
         ],
       ),
     );
@@ -1143,7 +1221,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: segmented(['All', 'Income', 'Expense'], filter, (i) => setState(() => filter = i),
-                    colors: const [kBlue, kBlue, kBlue]),
+                    colors: const [Color(0xFF2B3C63), Color(0xFF2B3C63), Color(0xFF2B3C63)]),
               ),
               Expanded(
                 child: list.isEmpty
@@ -1245,7 +1323,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1924,7 +2002,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: on ? kGreen : kCard,
+                          color: on ? kGreen : kCard2,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(weekDays[i], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -1968,6 +2046,52 @@ class _AlarmScreenState extends State<AlarmScreen> {
 }
 
 // ───────────────────────── 12. Alarm Ringing ─────────────────────────
+Widget ringBtn(IconData icon, String label, Color color, VoidCallback onTap) => GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 96,
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 28),
+            const SizedBox(height: 6),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+
+class MountainPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size s) {
+    final back = Path()
+      ..moveTo(0, s.height * 0.62)
+      ..lineTo(s.width * 0.18, s.height * 0.50)
+      ..lineTo(s.width * 0.35, s.height * 0.60)
+      ..lineTo(s.width * 0.55, s.height * 0.44)
+      ..lineTo(s.width * 0.80, s.height * 0.60)
+      ..lineTo(s.width, s.height * 0.52)
+      ..lineTo(s.width, s.height)
+      ..lineTo(0, s.height)
+      ..close();
+    canvas.drawPath(back, Paint()..color = const Color(0xFF16233F));
+    final front = Path()
+      ..moveTo(0, s.height * 0.75)
+      ..lineTo(s.width * 0.25, s.height * 0.64)
+      ..lineTo(s.width * 0.5, s.height * 0.74)
+      ..lineTo(s.width * 0.75, s.height * 0.62)
+      ..lineTo(s.width, s.height * 0.72)
+      ..lineTo(s.width, s.height)
+      ..lineTo(0, s.height)
+      ..close();
+    canvas.drawPath(front, Paint()..color = const Color(0xFF0F1A31));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
 class AlarmRingingScreen extends StatefulWidget {
   const AlarmRingingScreen({super.key});
   @override
@@ -1997,55 +2121,38 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1B2A4A), kBg],
+            colors: [Color(0xFF1B2A4A), Color(0xFF0A1122)],
           ),
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                const Spacer(),
-                const Icon(Icons.alarm, size: 80, color: Colors.white70),
-                const SizedBox(height: 16),
-                const Text('Alarm Ringing!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(fmtTime(app.alarmTime), style: const TextStyle(fontSize: 22, color: Colors.white70)),
-                const Spacer(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 90,
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                              backgroundColor: kRed,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close),
-                          label: const Text('Stop'),
-                        ),
+        child: CustomPaint(
+          painter: MountainPainter(),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  const Icon(Icons.alarm, size: 80, color: Colors.white70),
+                  const SizedBox(height: 16),
+                  const Text('Alarm Ringing!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(fmtTime(app.alarmTime), style: const TextStyle(fontSize: 22, color: Colors.white70)),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(child: ringBtn(Icons.close, 'Stop', kRed, () => Navigator.pop(context))),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: ringBtn(Icons.access_time, 'Snooze\n10 min', kBlue, () {
+                          Navigator.pushReplacement(
+                              context, MaterialPageRoute(builder: (_) => const SnoozedScreen()));
+                        }),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: SizedBox(
-                        height: 90,
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                              backgroundColor: kBlue,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                          onPressed: () => Navigator.pushReplacement(
-                              context, MaterialPageRoute(builder: (_) => const SnoozedScreen())),
-                          icon: const Icon(Icons.snooze),
-                          label: const Text('Snooze\n10 min', textAlign: TextAlign.center),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
         ),
