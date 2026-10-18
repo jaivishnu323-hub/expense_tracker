@@ -24,6 +24,8 @@ jobs:
         run: |
           flutter create --platforms=android --org com.example --project-name expense_tracker app
           cp main.dart app/lib/main.dart
+          cd app
+          flutter pub add shared_preferences
 
       - name: Build release APK
         working-directory: app
