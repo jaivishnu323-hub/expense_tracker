@@ -23,7 +23,7 @@ const monthsFull = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
-const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 
 const expenseCats = ['Food', 'Travel', 'Shopping', 'Bills', 'Grocery', 'Other'];
 const incomeCats = ['Salary', 'Freelance', 'Gift', 'Other'];
@@ -40,12 +40,6 @@ String inr(num v) {
 }
 
 String fmtDate(DateTime d) => '${d.day} ${monthsShort[d.month - 1]} ${d.year}';
-
-String fmtTime(TimeOfDay t) {
-  final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-  final m = t.minute.toString().padLeft(2, '0');
-  return '${h.toString().padLeft(2, '0')}:$m ${t.period == DayPeriod.am ? 'AM' : 'PM'}';
-}
 
 IconData catIcon(String c) {
   switch (c) {
@@ -225,10 +219,10 @@ class AppState extends ChangeNotifier {
   int timeoutMin = 1;
   bool unlocking = false;
 
-  TimeOfDay alarmTime = const TimeOfDay(hour: 7, minute: 0);
-  Set<int> alarmDays = {1, 2, 3, 4, 5};
-  String alarmSound = 'Default Alarm';
-  TimeOfDay reminderTime = const TimeOfDay(hour: 21, minute: 0);
+
+  
+
+  
 
   final ValueNotifier<String> status = ValueNotifier('Nothing saved yet');
 
@@ -279,10 +273,10 @@ class AppState extends ChangeNotifier {
       pin = m['pin'] as String?;
       lockOnClose = (m['lockOnClose'] as bool?) ?? true;
       timeoutMin = (m['timeoutMin'] as int?) ?? 1;
-      alarmTime = TimeOfDay(hour: (m['alarmH'] as int?) ?? 7, minute: (m['alarmM'] as int?) ?? 0);
-      alarmDays = ((m['alarmDays'] as List?)?.map((e) => e as int).toSet()) ?? {1, 2, 3, 4, 5};
-      alarmSound = (m['alarmSound'] as String?) ?? 'Default Alarm';
-      reminderTime = TimeOfDay(hour: (m['remH'] as int?) ?? 21, minute: (m['remM'] as int?) ?? 0);
+
+      
+
+      
       status.value = 'Loaded ${txns.length} entries at start';
     } catch (e) {
       status.value = 'Load error: $e';
@@ -306,12 +300,6 @@ class AppState extends ChangeNotifier {
           'pin': pin,
           'lockOnClose': lockOnClose,
           'timeoutMin': timeoutMin,
-          'alarmH': alarmTime.hour,
-          'alarmM': alarmTime.minute,
-          'alarmDays': alarmDays.toList(),
-          'alarmSound': alarmSound,
-          'remH': reminderTime.hour,
-          'remM': reminderTime.minute,
       });
       await f.writeAsString(data, flush: true);
       status.value = 'Saved OK (${txns.length} entries)';
@@ -1288,9 +1276,7 @@ class SettingsTab extends StatelessWidget {
           tile(Icons.lock_outline, 'App Lock', 'PIN or pattern protection', () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const AppLockScreen()));
           }),
-          tile(Icons.alarm, 'Alarm & Reminder', 'Alarm and daily expense reminder', () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const AlarmScreen()));
-          }),
+
           const SizedBox(height: 8),
           ValueListenableBuilder<String>(
             valueListenable: app.status,
@@ -1302,7 +1288,7 @@ class SettingsTab extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(v),
                   const SizedBox(height: 4),
-                  const Text('Build: save-v8', style: TextStyle(color: kMuted, fontSize: 11)),
+                  const Text('Build: save-v9', style: TextStyle(color: kMuted, fontSize: 11)),
                 ],
               ),
             ),
@@ -1732,334 +1718,6 @@ class _UnlockScreenState extends State<UnlockScreen> {
                     : Text(wrong ? (isPin ? 'Wrong PIN. Try again' : 'Wrong pattern. Try again') : '',
                         style: const TextStyle(color: kRed)),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ───────────────────────── 11. Alarm Settings (+ 14 reminder) ─────────────────────────
-class AlarmScreen extends StatefulWidget {
-  const AlarmScreen({super.key});
-  @override
-  State<AlarmScreen> createState() => _AlarmScreenState();
-}
-
-class _AlarmScreenState extends State<AlarmScreen> {
-  int tab = 0;
-  late TimeOfDay alarmTime = app.alarmTime;
-  late TimeOfDay reminderTime = app.reminderTime;
-  late Set<int> days = {...app.alarmDays};
-  late String sound = app.alarmSound;
-
-  Future<void> pickTime() async {
-    final t = await showTimePicker(context: context, initialTime: tab == 0 ? alarmTime : reminderTime);
-    if (t != null) setState(() => tab == 0 ? alarmTime = t : reminderTime = t);
-  }
-
-  Future<void> pickSound() async {
-    final v = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        backgroundColor: kCard,
-        title: const Text('Sound'),
-        children: ['Default Alarm', 'Gentle Wake', 'Classic Beep']
-            .map((s) => SimpleDialogOption(onPressed: () => Navigator.pop(ctx, s), child: Text(s)))
-            .toList(),
-      ),
-    );
-    if (v != null) setState(() => sound = v);
-  }
-
-  void save() {
-    app.alarmTime = alarmTime;
-    app.reminderTime = reminderTime;
-    app.alarmDays = {...days};
-    app.alarmSound = sound;
-    app.refresh();
-    snack(context, tab == 0 ? 'Alarm set for ${fmtTime(alarmTime)}' : 'Daily reminder set for ${fmtTime(reminderTime)}');
-  }
-
-  void previewNotification() {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: kCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: const [
-                Icon(Icons.account_balance_wallet, color: kBlue, size: 18),
-                SizedBox(width: 8),
-                Expanded(child: Text('ExpenseTracker', style: TextStyle(fontSize: 12))),
-                Text('now', style: TextStyle(color: kMuted, fontSize: 12)),
-              ]),
-              const SizedBox(height: 12),
-              const Text('🔔 Daily Expense Reminder', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              const Text('Don\'t forget to add your today\'s expenses!', style: TextStyle(color: kMuted, fontSize: 13)),
-              const SizedBox(height: 14),
-              Row(children: [
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(backgroundColor: kBlue),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AddTransactionScreen(income: false)));
-                    },
-                    child: const Text('Open App'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(backgroundColor: kCard2),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      snack(context, 'Reminder snoozed for 10 minutes');
-                    },
-                    child: const Text('Snooze 10 min'),
-                  ),
-                ),
-              ]),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final time = tab == 0 ? alarmTime : reminderTime;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Alarm'), leading: const BackButton()),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              segmented(['Normal Alarm', 'Expense Reminder'], tab, (i) => setState(() => tab = i)),
-              const SizedBox(height: 20),
-              labeled(
-                tab == 0 ? 'Alarm Time' : 'Reminder Time',
-                InkWell(
-                  onTap: pickTime,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(children: [
-                      const Icon(Icons.access_time, size: 18, color: kMuted),
-                      const SizedBox(width: 10),
-                      Text(fmtTime(time)),
-                    ]),
-                  ),
-                ),
-              ),
-              if (tab == 0) ...[
-                const Text('Repeat', style: TextStyle(color: kMuted, fontSize: 13)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: List.generate(7, (i) {
-                    final d = i + 1;
-                    final on = days.contains(d);
-                    return GestureDetector(
-                      onTap: () => setState(() => on ? days.remove(d) : days.add(d)),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: on ? kGreen : kCard2,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(weekDays[i], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 16),
-                labeled(
-                  'Sound',
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(sound),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: pickSound,
-                  ),
-                ),
-              ] else ...[
-                cardBox(
-                  child: const Text('Every day at the chosen time you will get: "Don\'t forget to add your today\'s expenses!"',
-                      style: TextStyle(color: kMuted)),
-                ),
-                const SizedBox(height: 16),
-              ],
-              bigBtn(tab == 0 ? 'Save Alarm' : 'Save Reminder', save, color: kGreen),
-              const SizedBox(height: 10),
-              Center(
-                child: TextButton(
-                  onPressed: tab == 0
-                      ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AlarmRingingScreen()))
-                      : previewNotification,
-                  child: Text(tab == 0 ? 'Preview ringing screen' : 'Preview notification'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ───────────────────────── 12. Alarm Ringing ─────────────────────────
-Widget ringBtn(IconData icon, String label, Color color, VoidCallback onTap) => GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 96,
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 28),
-            const SizedBox(height: 6),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
-    );
-
-class MountainPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size s) {
-    final back = Path()
-      ..moveTo(0, s.height * 0.62)
-      ..lineTo(s.width * 0.18, s.height * 0.50)
-      ..lineTo(s.width * 0.35, s.height * 0.60)
-      ..lineTo(s.width * 0.55, s.height * 0.44)
-      ..lineTo(s.width * 0.80, s.height * 0.60)
-      ..lineTo(s.width, s.height * 0.52)
-      ..lineTo(s.width, s.height)
-      ..lineTo(0, s.height)
-      ..close();
-    canvas.drawPath(back, Paint()..color = const Color(0xFF16233F));
-    final front = Path()
-      ..moveTo(0, s.height * 0.75)
-      ..lineTo(s.width * 0.25, s.height * 0.64)
-      ..lineTo(s.width * 0.5, s.height * 0.74)
-      ..lineTo(s.width * 0.75, s.height * 0.62)
-      ..lineTo(s.width, s.height * 0.72)
-      ..lineTo(s.width, s.height)
-      ..lineTo(0, s.height)
-      ..close();
-    canvas.drawPath(front, Paint()..color = const Color(0xFF0F1A31));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}
-
-class AlarmRingingScreen extends StatefulWidget {
-  const AlarmRingingScreen({super.key});
-  @override
-  State<AlarmRingingScreen> createState() => _AlarmRingingScreenState();
-}
-
-class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
-  Timer? timer;
-
-  @override
-  void initState() {
-    super.initState();
-    timer = Timer.periodic(const Duration(seconds: 1), (_) => HapticFeedback.heavyImpact());
-  }
-
-  @override
-  void dispose() {
-    timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1B2A4A), Color(0xFF0A1122)],
-          ),
-        ),
-        child: CustomPaint(
-          painter: MountainPainter(),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  const Spacer(),
-                  const Icon(Icons.alarm, size: 80, color: Colors.white70),
-                  const SizedBox(height: 16),
-                  const Text('Alarm Ringing!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(fmtTime(app.alarmTime), style: const TextStyle(fontSize: 22, color: Colors.white70)),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      Expanded(child: ringBtn(Icons.close, 'Stop', kRed, () => Navigator.pop(context))),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: ringBtn(Icons.access_time, 'Snooze\n10 min', kBlue, () {
-                          Navigator.pushReplacement(
-                              context, MaterialPageRoute(builder: (_) => const SnoozedScreen()));
-                        }),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ───────────────────────── 13. Snoozed ─────────────────────────
-class SnoozedScreen extends StatelessWidget {
-  const SnoozedScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(color: kBlue.withAlpha(50), shape: BoxShape.circle),
-                child: const Icon(Icons.hourglass_bottom, size: 44, color: kBlue),
-              ),
-              const SizedBox(height: 24),
-              const Text('Snoozed!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('Alarm will ring again in', style: TextStyle(color: kMuted)),
-              const Text('10 minutes', style: TextStyle(color: kBlue)),
-              const SizedBox(height: 32),
-              bigBtn('OK', () => Navigator.pop(context)),
             ],
           ),
         ),
