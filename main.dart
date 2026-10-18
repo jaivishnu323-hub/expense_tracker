@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 // ───────────────────────── Theme constants ─────────────────────────
 const kBg = Color(0xFF0A1122);
@@ -231,14 +232,39 @@ class AppState extends ChangeNotifier {
 
   final ValueNotifier<String> status = ValueNotifier('Nothing saved yet');
 
+  Future<File?> _file() async {
+    final names = <String>[];
+    try {
+      final bytes = await File('/proc/self/cmdline').readAsBytes();
+      final end = bytes.indexOf(0);
+      final pkg = String.fromCharCodes(end < 0 ? bytes : bytes.sublist(0, end)).trim();
+      if (pkg.isNotEmpty && pkg.contains('.')) names.add(pkg);
+    } catch (_) {}
+    names.add('com.example.expense_tracker');
+    for (final pkg in names) {
+      for (final base in ['/data/user/0/$pkg/files', '/data/data/$pkg/files']) {
+        try {
+          final d = Directory(base);
+          if (!await d.exists()) await d.create(recursive: true);
+          return File('$base/expense_data.json');
+        } catch (_) {}
+      }
+    }
+    return null;
+  }
+
   Future<void> load() async {
     try {
-      final p = await SharedPreferences.getInstance();
-      final raw = p.getString('app_data');
-      if (raw == null) {
+      final f = await _file();
+      if (f == null) {
+        status.value = 'Load error: no storage folder';
+        return;
+      }
+      if (!await f.exists()) {
         status.value = 'No saved data found at start';
         return;
       }
+      final raw = await f.readAsString();
       final m = jsonDecode(raw) as Map<String, dynamic>;
       txns
         ..clear()
@@ -265,10 +291,12 @@ class AppState extends ChangeNotifier {
 
   Future<void> _save() async {
     try {
-      final p = await SharedPreferences.getInstance();
-      final ok = await p.setString(
-        'app_data',
-        jsonEncode({
+      final f = await _file();
+      if (f == null) {
+        status.value = 'Save error: no storage folder';
+        return;
+      }
+      final data = jsonEncode({
           'txns': txns.map((t) => t.toJson()).toList(),
           'outing': outing.map((t) => t.toJson()).toList(),
           'outingBudget': outingBudget,
@@ -284,9 +312,9 @@ class AppState extends ChangeNotifier {
           'alarmSound': alarmSound,
           'remH': reminderTime.hour,
           'remM': reminderTime.minute,
-        }),
-      );
-      status.value = ok ? 'Saved OK (${txns.length} entries)' : 'Save failed';
+      });
+      await f.writeAsString(data, flush: true);
+      status.value = 'Saved OK (${txns.length} entries)';
     } catch (e) {
       status.value = 'Save error: $e';
     }
@@ -1211,7 +1239,7 @@ class SettingsTab extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(v),
                   const SizedBox(height: 4),
-                  const Text('Build: save-v6', style: TextStyle(color: kMuted, fontSize: 11)),
+                  const Text('Build: save-v7', style: TextStyle(color: kMuted, fontSize: 11)),
                 ],
               ),
             ),
