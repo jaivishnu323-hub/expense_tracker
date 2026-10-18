@@ -229,11 +229,16 @@ class AppState extends ChangeNotifier {
   String alarmSound = 'Default Alarm';
   TimeOfDay reminderTime = const TimeOfDay(hour: 21, minute: 0);
 
+  final ValueNotifier<String> status = ValueNotifier('Nothing saved yet');
+
   Future<void> load() async {
     try {
       final p = await SharedPreferences.getInstance();
       final raw = p.getString('app_data');
-      if (raw == null) return;
+      if (raw == null) {
+        status.value = 'No saved data found at start';
+        return;
+      }
       final m = jsonDecode(raw) as Map<String, dynamic>;
       txns
         ..clear()
@@ -252,13 +257,16 @@ class AppState extends ChangeNotifier {
       alarmDays = ((m['alarmDays'] as List?)?.map((e) => e as int).toSet()) ?? {1, 2, 3, 4, 5};
       alarmSound = (m['alarmSound'] as String?) ?? 'Default Alarm';
       reminderTime = TimeOfDay(hour: (m['remH'] as int?) ?? 21, minute: (m['remM'] as int?) ?? 0);
-    } catch (_) {}
+      status.value = 'Loaded ${txns.length} entries at start';
+    } catch (e) {
+      status.value = 'Load error: $e';
+    }
   }
 
   Future<void> _save() async {
     try {
       final p = await SharedPreferences.getInstance();
-      await p.setString(
+      final ok = await p.setString(
         'app_data',
         jsonEncode({
           'txns': txns.map((t) => t.toJson()).toList(),
@@ -278,7 +286,10 @@ class AppState extends ChangeNotifier {
           'remM': reminderTime.minute,
         }),
       );
-    } catch (_) {}
+      status.value = ok ? 'Saved OK (${txns.length} entries)' : 'Save failed';
+    } catch (e) {
+      status.value = 'Save error: $e';
+    }
   }
 
   @override
@@ -1189,7 +1200,23 @@ class SettingsTab extends StatelessWidget {
           tile(Icons.alarm, 'Alarm & Reminder', 'Alarm and daily expense reminder', () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const AlarmScreen()));
           }),
-          ],
+          const SizedBox(height: 8),
+          ValueListenableBuilder<String>(
+            valueListenable: app.status,
+            builder: (context, v, _) => cardBox(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Data storage', style: TextStyle(color: kMuted, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text(v),
+                  const SizedBox(height: 4),
+                  const Text('Build: save-v6', style: TextStyle(color: kMuted, fontSize: 11)),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
