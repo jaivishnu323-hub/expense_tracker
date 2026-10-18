@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ───────────────────────── Theme constants ─────────────────────────
 const kBg = Color(0xFF0A1122);
@@ -185,6 +187,26 @@ class Txn {
   final DateTime date;
   final String note;
   Txn(this.id, this.title, this.category, this.amount, this.income, this.date, {this.note = ''});
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'category': category,
+        'amount': amount,
+        'income': income,
+        'date': date.toIso8601String(),
+        'note': note,
+      };
+
+  factory Txn.fromJson(Map<String, dynamic> j) => Txn(
+        j['id'] as String,
+        j['title'] as String,
+        j['category'] as String,
+        (j['amount'] as num).toDouble(),
+        j['income'] as bool,
+        DateTime.parse(j['date'] as String),
+        note: (j['note'] as String?) ?? '',
+      );
 }
 
 String newId() => DateTime.now().microsecondsSinceEpoch.toString();
@@ -207,6 +229,64 @@ class AppState extends ChangeNotifier {
   String alarmSound = 'Default Alarm';
   TimeOfDay reminderTime = const TimeOfDay(hour: 21, minute: 0);
 
+  Future<void> load() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString('app_data');
+      if (raw == null) return;
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      txns
+        ..clear()
+        ..addAll(((m['txns'] as List?) ?? []).map((e) => Txn.fromJson(Map<String, dynamic>.from(e as Map))));
+      outing
+        ..clear()
+        ..addAll(((m['outing'] as List?) ?? []).map((e) => Txn.fromJson(Map<String, dynamic>.from(e as Map))));
+      outingBudget = (m['outingBudget'] as num?)?.toDouble() ?? outingBudget;
+      lockEnabled = (m['lockEnabled'] as bool?) ?? false;
+      lockMethod = (m['lockMethod'] as String?) ?? 'Pattern';
+      pattern = (m['pattern'] as List?)?.map((e) => e as int).toList();
+      pin = m['pin'] as String?;
+      lockOnClose = (m['lockOnClose'] as bool?) ?? true;
+      timeoutMin = (m['timeoutMin'] as int?) ?? 1;
+      alarmTime = TimeOfDay(hour: (m['alarmH'] as int?) ?? 7, minute: (m['alarmM'] as int?) ?? 0);
+      alarmDays = ((m['alarmDays'] as List?)?.map((e) => e as int).toSet()) ?? {1, 2, 3, 4, 5};
+      alarmSound = (m['alarmSound'] as String?) ?? 'Default Alarm';
+      reminderTime = TimeOfDay(hour: (m['remH'] as int?) ?? 21, minute: (m['remM'] as int?) ?? 0);
+    } catch (_) {}
+  }
+
+  Future<void> _save() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(
+        'app_data',
+        jsonEncode({
+          'txns': txns.map((t) => t.toJson()).toList(),
+          'outing': outing.map((t) => t.toJson()).toList(),
+          'outingBudget': outingBudget,
+          'lockEnabled': lockEnabled,
+          'lockMethod': lockMethod,
+          'pattern': pattern,
+          'pin': pin,
+          'lockOnClose': lockOnClose,
+          'timeoutMin': timeoutMin,
+          'alarmH': alarmTime.hour,
+          'alarmM': alarmTime.minute,
+          'alarmDays': alarmDays.toList(),
+          'alarmSound': alarmSound,
+          'remH': reminderTime.hour,
+          'remM': reminderTime.minute,
+        }),
+      );
+    } catch (_) {}
+  }
+
+  @override
+  void notifyListeners() {
+    super.notifyListeners();
+    _save();
+  }
+
   double get income => txns.where((t) => t.income).fold(0.0, (s, t) => s + t.amount);
   double get expense => txns.where((t) => !t.income).fold(0.0, (s, t) => s + t.amount);
   double get balance => income - expense;
@@ -218,7 +298,11 @@ class AppState extends ChangeNotifier {
 final app = AppState();
 
 // ───────────────────────── App root ─────────────────────────
-void main() => runApp(const ExpenseTrackerApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await app.load();
+  runApp(const ExpenseTrackerApp());
+}
 
 class ExpenseTrackerApp extends StatefulWidget {
   const ExpenseTrackerApp({super.key});
@@ -291,6 +375,17 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (app.lockEnabled && !app.unlocking) {
+      app.unlocking = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        navKey.currentState?.push(MaterialPageRoute(builder: (_) => const UnlockScreen()));
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1216,6 +1311,7 @@ class AppLockScreen extends StatelessWidget {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
                     final ok = await setupLock(context);
+                    if (ok) app.refresh();
                     if (ok && context.mounted) snack(context, 'Lock updated');
                   },
                 ),
@@ -1564,6 +1660,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
     app.reminderTime = reminderTime;
     app.alarmDays = {...days};
     app.alarmSound = sound;
+    app.refresh();
     snack(context, tab == 0 ? 'Alarm set for ${fmtTime(alarmTime)}' : 'Daily reminder set for ${fmtTime(reminderTime)}');
   }
 
