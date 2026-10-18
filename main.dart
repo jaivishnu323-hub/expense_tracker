@@ -1004,14 +1004,67 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   int filter = 0;
 
+  List<Txn> get filtered => app.txns.where((t) => filter == 0 || (filter == 1 ? t.income : !t.income)).toList();
+
+  Future<bool> confirm(String title, String msg, String yes) async {
+    final r = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kCard,
+        title: Text(title),
+        content: Text(msg),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(yes, style: const TextStyle(color: kRed)),
+          ),
+        ],
+      ),
+    );
+    return r == true;
+  }
+
+  Future<void> deleteOne(Txn t) async {
+    final ok = await confirm('Delete entry?', '${t.title} • ${inr(t.amount)} will be removed.', 'Delete');
+    if (!ok) return;
+    app.txns.removeWhere((e) => e.id == t.id);
+    app.refresh();
+  }
+
+  Future<void> clearAll() async {
+    final list = filtered;
+    if (list.isEmpty) {
+      snack(context, 'Nothing to delete');
+      return;
+    }
+    final what = filter == 0 ? 'all' : (filter == 1 ? 'all income' : 'all expense');
+    final ok = await confirm('Delete history?', 'This will delete $what entries (${list.length}). This cannot be undone.', 'Delete all');
+    if (!ok) return;
+    final ids = list.map((e) => e.id).toSet();
+    app.txns.removeWhere((e) => ids.contains(e.id));
+    app.refresh();
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Transaction History'), automaticallyImplyLeading: false),
+      appBar: AppBar(
+        title: const Text('Transaction History'),
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            tooltip: 'Delete all',
+            onPressed: clearAll,
+            icon: const Icon(Icons.delete_sweep_outlined, color: kRed),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
         listenable: app,
         builder: (context, _) {
-          final list = app.txns.where((t) => filter == 0 || (filter == 1 ? t.income : !t.income)).toList();
+          final list = filtered;
           return Column(
             children: [
               Padding(
@@ -1041,7 +1094,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               app.txns.removeWhere((e) => e.id == t.id);
                               app.refresh();
                             },
-                            child: TxnTile(t: t),
+                                                        child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(child: TxnTile(t: t)),
+                                IconButton(
+                                  tooltip: 'Delete',
+                                  onPressed: () => deleteOne(t),
+                                  icon: const Icon(Icons.delete_outline, color: kRed),
+                                ),
+                              ],
+                            ),
                           );
                         },
                       ),
@@ -1239,7 +1302,7 @@ class SettingsTab extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(v),
                   const SizedBox(height: 4),
-                  const Text('Build: save-v7', style: TextStyle(color: kMuted, fontSize: 11)),
+                  const Text('Build: save-v8', style: TextStyle(color: kMuted, fontSize: 11)),
                 ],
               ),
             ),
